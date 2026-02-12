@@ -128,6 +128,20 @@ def hola():
 - Safari: ✅ Totalment compatible
 - Opera: ✅ Totalment compatible
 
+### Límits de mida dels arxius Word
+
+- **Mida màxima recomanada**: 512 MB (limitació de Microsoft Word)
+- **Límit pràctic al navegador**: ~50-100 MB (depenent de la memòria disponible)
+- **Recomanació**: Per documents molt grans (>10 MB), és millor dividir-los en múltiples arxius
+- **Nombre màxim de pàgines**: No hi ha límit tècnic, però Word funciona millor amb <1000 pàgines
+- **Nota**: Els arxius generats per aquesta eina són molt optimitzats i ocupen poc espai
+
+### Estadístiques aproximades:
+- **Text simple**: ~1 KB per pàgina
+- **Text amb format**: ~3-5 KB per pàgina  
+- **Text amb imatges**: Variable segons qualitat de les imatges
+- **Document típic de 50 pàgines**: ~200-500 KB
+
 ## 📄 Llicència
 
 Aquest projecte és de codi obert i lliure d'utilitzar.
