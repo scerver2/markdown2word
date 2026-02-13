@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown ⇄ Word Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Crimson+Pro:wght@300;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151933;
+            --bg-tertiary: #1e2340;
+            --accent-primary: #00ff88;
+            --accent-secondary: #ff0080;
+            --accent-tertiary: #00d4ff;
+            --text-primary: #e8edf5;
+            --text-secondary: #9ca8c0;
+            --border-color: rgba(0, 255, 136, 0.2);
+            --shadow-glow: 0 0 30px rgba(0, 255, 136, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Crimson Pro', serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(0, 255, 136, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 0, 128, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.03) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-tertiary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+            letter-spacing: -2px;
+            text-shadow: 0 0 60px rgba(0, 255, 136, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            animation: fadeIn 1s ease-out 0.2s both;
+        }
+
+        .mode-selector {
+            display: flex;
+            background: var(--bg-secondary);
+            border-radius: 50px;
+            padding: 8px;
+            border: 2px solid var(--border-color);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .mode-btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 12px 30px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-tertiary));
+            color: var(--bg-primary);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .mode-btn:hover:not(.active) {
+            color: var(--accent-primary);
+        }
+
+        .color-picker-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: var(--bg-secondary);
+            padding: 12px 25px;
+            border-radius: 50px;
+            border: 2px solid var(--border-color);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .color-picker-group label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .color-picker {
+            width: 50px;
+            height: 35px;
+            border: 2px solid var(--accent-primary);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+        }
+
+        .color-picker:hover {
+            box-shadow: 0 0 20px var(--accent-primary);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid var(--border-color);
+            box-shadow: var(--shadow-glow);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.2);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--bg-tertiary);
+        }
+
+        .panel-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+        }
+
+        .file-input-btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .file-input-btn:hover {
+            background: var(--accent-tertiary);
+            color: var(--bg-primary);
+            border-color: var(--accent-tertiary);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .icon-btn:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .icon-btn.delete:hover {
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.4);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        textarea {
+            font-family: 'JetBrains Mono', monospace;
+            width: 100%;
+            min-height: 500px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 2px solid var(--bg-primary);
+            border-radius: 15px;
+            padding: 20px;
+            font-size: 0.95rem;
+            line-height: 1.8;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+
+        textarea::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        .preview {
+            font-family: 'Crimson Pro', serif;
+            width: 100%;
+            min-height: 500px;
+            background: #ffffff;
+            color: #000000;
+            border: 2px solid var(--bg-primary);
+            border-radius: 15px;
+            padding: 40px;
+            font-size: 1rem;
+            line-height: 1.8;
+            overflow-y: auto;
+        }
+
+        .preview h1, .preview h2, .preview h3, .preview h4, .preview h5, .preview h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.7em;
+            font-weight: 700;
+        }
+
+        .preview h1 { font-size: 2.2em; }
+        .preview h2 { font-size: 1.8em; }
+        .preview h3 { font-size: 1.5em; }
+        .preview h4 { font-size: 1.3em; }
+        .preview h5 { font-size: 1.1em; }
+        .preview h6 { font-size: 1em; }
+
+        .preview p {
+            margin-bottom: 1em;
+        }
+
+        .preview ul, .preview ol {
+            margin-left: 2em;
+            margin-bottom: 1em;
+        }
+
+        .preview code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .preview pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1em;
+        }
+
+        .preview pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        .preview blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 20px;
+            margin-left: 0;
+            margin-bottom: 1em;
+            color: #666;
+        }
+
+        .preview table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1em;
+        }
+
+        .preview th, .preview td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .preview th {
+            background: #f5f5f5;
+            font-weight: 700;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            animation: fadeIn 1.2s ease-out 0.6s both;
+        }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 18px 50px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-tertiary));
+            color: var(--bg-primary);
+            box-shadow: 0 8px 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px);
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 20px 30px;
+            border-radius: 15px;
+            border: 2px solid var(--accent-primary);
+            box-shadow: 0 10px 40px rgba(0, 255, 136, 0.4);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateX(400px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+                color: var(--accent-tertiary);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .mode-selector,
+            .color-picker-group {
+                justify-content: center;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MD ⇄ DOCX</h1>
+            <p class="subtitle" id="subtitle">Convertidor bidireccional Markdown ⟷ Word</p>
+        </header>
+
+        <div class="controls">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="md-to-word">Markdown → Word</button>
+                <button class="mode-btn" data-mode="word-to-md">Word → Markdown</button>
+            </div>
+
+            <div class="color-picker-group">
+                <label for="titleColor" id="colorLabel">Color dels títols:</label>
+                <input type="color" id="titleColor" class="color-picker" value="#2c3e50">
+            </div>
+
+            <div class="mode-selector">
+                <button class="mode-btn active" data-lang="ca">Català</button>
+                <button class="mode-btn" data-lang="es">Español</button>
+                <button class="mode-btn" data-lang="en">English</button>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title" id="sourceTitle">Font</h2>
+                    <div class="action-buttons">
+                        <button class="icon-btn" id="copyBtn" title="Copiar contingut">📋</button>
+                        <button class="icon-btn delete" id="clearBtn" title="Esborrar contingut">🗑️</button>
+                        <div class="file-input-wrapper">
+                            <label for="fileInput" class="file-input-btn" id="uploadBtn">📁 Pujar arxiu</label>
+                            <input type="file" id="fileInput" accept=".md,.docx">
+                        </div>
+                    </div>
+                </div>
+                <textarea id="inputArea" placeholder="Enganxa o escriu el teu contingut Markdown aquí...
+
+Exemples de símbols:
+- Grec: α β γ δ ε ζ η θ λ μ π σ ω Δ Σ Ω
+- Subindex: H₂O CO₂ 
+- Superindex: E=mc² x²
+- Matemàtiques: ∞ ≤ ≥ ≠ ± × ÷
+"></textarea>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title" id="previewTitle">Previsualització</h2>
+                </div>
+                <div class="preview" id="preview"></div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" id="convertBtn">
+                <span id="btnText">⚡ Convertir a Word</span>
+            </button>
+        </div>
+
+        <footer style="text-align: center; margin-top: 60px; padding: 30px 0; border-top: 2px solid var(--border-color); font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); font-size: 0.95rem;" id="footer">
+            Creat per <span style="color: var(--accent-primary); font-weight: 700;">Salvador Cervera</span> amb <span style="color: var(--accent-secondary); font-size: 1.2rem;">❤️</span> per a la comunitat
+            <br><br>
+            <div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-secondary); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--border-color);">
+                <span style="color: var(--accent-tertiary); font-size: 1.2rem;">👁️</span>
+                <span style="color: var(--text-secondary);" id="visitorLabel">Visites:</span>
+                <span style="color: var(--accent-primary); font-weight: 700; font-size: 1.1rem;" id="visitorCount">---</span>
+            </div>
+        </footer>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Translations
+        const translations = {
+            ca: {
+                subtitle: "Convertidor bidireccional Markdown ⟷ Word",
+                mdToWord: "Markdown → Word",
+                wordToMd: "Word → Markdown",
+                colorLabel: "Color dels títols:",
+                sourceTitle: "Font",
+                previewTitle: "Previsualització",
+                uploadBtn: "📁 Pujar arxiu",
+                convertToWord: "⚡ Convertir a Word",
+                convertToMd: "⚡ Convertir a Markdown",
+                footer: 'Creat per <span style="color: var(--accent-primary); font-weight: 700;">Salvador Cervera</span> amb <span style="color: var(--accent-secondary); font-size: 1.2rem;">❤️</span> per a la comunitat<br><br><div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-secondary); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--border-color);"><span style="color: var(--accent-tertiary); font-size: 1.2rem;">👁️</span><span style="color: var(--text-secondary);" id="visitorLabel">Visites:</span><span style="color: var(--accent-primary); font-weight: 700; font-size: 1.1rem;" id="visitorCount">---</span></div>',
+                placeholderMd: `Enganxa o escriu el teu contingut Markdown aquí...
+
+Exemples de símbols:
+- Grec: α β γ δ ε ζ η θ λ μ π σ ω Δ Σ Ω
+- Subindex: H₂O CO₂ 
+- Superindex: E=mc² x²
+- Matemàtiques: ∞ ≤ ≥ ≠ ± × ÷`,
+                placeholderWord: "Enganxa el contingut del Word aquí o puja un arxiu .docx...",
+                notifMdLoaded: "✓ Arxiu Markdown carregat",
+                notifWordLoaded: "✓ Arxiu Word carregat",
+                notifWrongFormat: "✗ Format d'arxiu incorrecte",
+                notifNoContent: "✗ No hi ha contingut per convertir",
+                notifWordDownloaded: "✓ Document Word descarregat!",
+                notifMdDownloaded: "✓ Arxiu Markdown descarregat!",
+                notifCopied: "✓ Contingut copiat!",
+                notifCleared: "✓ Contingut esborrat",
+                notifErrorWord: "✗ Error convertint a Word: ",
+                notifErrorLoading: "✗ Error carregant el Word: ",
+                visitorLabel: "Visites:"
+            },
+            es: {
+                subtitle: "Convertidor bidireccional Markdown ⟷ Word",
+                mdToWord: "Markdown → Word",
+                wordToMd: "Word → Markdown",
+                colorLabel: "Color de los títulos:",
+                sourceTitle: "Fuente",
+                previewTitle: "Previsualización",
+                uploadBtn: "📁 Subir archivo",
+                convertToWord: "⚡ Convertir a Word",
+                convertToMd: "⚡ Convertir a Markdown",
+                footer: 'Creado por <span style="color: var(--accent-primary); font-weight: 700;">Salvador Cervera</span> con <span style="color: var(--accent-secondary); font-size: 1.2rem;">❤️</span> para la comunidad<br><br><div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-secondary); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--border-color);"><span style="color: var(--accent-tertiary); font-size: 1.2rem;">👁️</span><span style="color: var(--text-secondary);" id="visitorLabel">Visitas:</span><span style="color: var(--accent-primary); font-weight: 700; font-size: 1.1rem;" id="visitorCount">---</span></div>',
+                placeholderMd: `Pega o escribe tu contenido Markdown aquí...
+
+Ejemplos de símbolos:
+- Griego: α β γ δ ε ζ η θ λ μ π σ ω Δ Σ Ω
+- Subíndice: H₂O CO₂ 
+- Superíndice: E=mc² x²
+- Matemáticas: ∞ ≤ ≥ ≠ ± × ÷`,
+                placeholderWord: "Pega el contenido del Word aquí o sube un archivo .docx...",
+                notifMdLoaded: "✓ Archivo Markdown cargado",
+                notifWordLoaded: "✓ Archivo Word cargado",
+                notifWrongFormat: "✗ Formato de archivo incorrecto",
+                notifNoContent: "✗ No hay contenido para convertir",
+                notifWordDownloaded: "✓ Documento Word descargado!",
+                notifMdDownloaded: "✓ Archivo Markdown descargado!",
+                notifCopied: "✓ Contenido copiado!",
+                notifCleared: "✓ Contenido borrado",
+                notifErrorWord: "✗ Error convirtiendo a Word: ",
+                notifErrorLoading: "✗ Error cargando el Word: ",
+                visitorLabel: "Visitas:"
+            },
+            en: {
+                subtitle: "Bidirectional Markdown ⟷ Word Converter",
+                mdToWord: "Markdown → Word",
+                wordToMd: "Word → Markdown",
+                colorLabel: "Title color:",
+                sourceTitle: "Source",
+                previewTitle: "Preview",
+                uploadBtn: "📁 Upload file",
+                convertToWord: "⚡ Convert to Word",
+                convertToMd: "⚡ Convert to Markdown",
+                footer: 'Created by <span style="color: var(--accent-primary); font-weight: 700;">Salvador Cervera</span> with <span style="color: var(--accent-secondary); font-size: 1.2rem;">❤️</span> for the community<br><br><div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-secondary); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--border-color);"><span style="color: var(--accent-tertiary); font-size: 1.2rem;">👁️</span><span style="color: var(--text-secondary);" id="visitorLabel">Visits:</span><span style="color: var(--accent-primary); font-weight: 700; font-size: 1.1rem;" id="visitorCount">---</span></div>',
+                placeholderMd: `Paste or write your Markdown content here...
+
+Symbol examples:
+- Greek: α β γ δ ε ζ η θ λ μ π σ ω Δ Σ Ω
+- Subscript: H₂O CO₂ 
+- Superscript: E=mc² x²
+- Math: ∞ ≤ ≥ ≠ ± × ÷`,
+                placeholderWord: "Paste the Word content here or upload a .docx file...",
+                notifMdLoaded: "✓ Markdown file loaded",
+                notifWordLoaded: "✓ Word file loaded",
+                notifWrongFormat: "✗ Incorrect file format",
+                notifNoContent: "✗ No content to convert",
+                notifWordDownloaded: "✓ Word document downloaded!",
+                notifMdDownloaded: "✓ Markdown file downloaded!",
+                notifCopied: "✓ Content copied!",
+                notifCleared: "✓ Content cleared",
+                notifErrorWord: "✗ Error converting to Word: ",
+                notifErrorLoading: "✗ Error loading Word: ",
+                visitorLabel: "Visits:"
+            }
+        };
+
+        // State management
+        let currentMode = 'md-to-word';
+        let titleColor = '#2c3e50';
+        let currentLang = 'ca';
+
+        // DOM elements
+        const modeButtons = document.querySelectorAll('.mode-btn[data-mode]');
+        const langButtons = document.querySelectorAll('.mode-btn[data-lang]');
+        const fileInput = document.getElementById('fileInput');
+        const inputArea = document.getElementById('inputArea');
+        const preview = document.getElementById('preview');
+        const convertBtn = document.getElementById('convertBtn');
+        const btnText = document.getElementById('btnText');
+        const colorPicker = document.getElementById('titleColor');
+        const notification = document.getElementById('notification');
+        const copyBtn = document.getElementById('copyBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Configure Showdown
+        const converter = new showdown.Converter({
+            tables: true,
+            tasklists: true,
+            strikethrough: true,
+            emoji: true,
+            underline: true,
+            simpleLineBreaks: false,
+            openLinksInNewWindow: true,
+            backslashEscapesHTMLTags: true,
+            ghCodeBlocks: true
+        });
+
+        // Language switching
+        langButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                langButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLang = btn.dataset.lang;
+                updateLanguage();
+            });
+        });
+
+        function updateLanguage() {
+            const t = translations[currentLang];
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.getElementById('colorLabel').textContent = t.colorLabel;
+            document.getElementById('sourceTitle').textContent = t.sourceTitle;
+            document.getElementById('previewTitle').textContent = t.previewTitle;
+            document.getElementById('uploadBtn').innerHTML = t.uploadBtn;
+            document.getElementById('footer').innerHTML = t.footer;
+            
+            // Update visitor label after footer is updated
+            setTimeout(() => {
+                const visitorLabelEl = document.getElementById('visitorLabel');
+                if (visitorLabelEl) {
+                    visitorLabelEl.textContent = t.visitorLabel;
+                }
+            }, 0);
+            
+            // Update mode buttons
+            const modeBtns = document.querySelectorAll('.mode-btn[data-mode]');
+            modeBtns[0].textContent = t.mdToWord;
+            modeBtns[1].textContent = t.wordToMd;
+            
+            // Update placeholder and button text based on current mode
+            if (currentMode === 'md-to-word') {
+                inputArea.placeholder = t.placeholderMd;
+                btnText.textContent = t.convertToWord;
+            } else {
+                inputArea.placeholder = t.placeholderWord;
+                btnText.textContent = t.convertToMd;
+            }
+            
+            // Load visitor count
+            loadVisitorCount();
+        }
+
+        // Load visitor count - Using CountAPI (simple, free, no signup)
+        function loadVisitorCount() {
+            const visitorCountEl = document.getElementById('visitorCount');
+            
+            // Show loading state
+            if (visitorCountEl) {
+                visitorCountEl.textContent = '...';
+            }
+            
+            // Generate a unique namespace based on the page URL
+            // This will be unique for each GitHub Pages domain
+            let namespace = 'md-word-converter'; // Default fallback
+            
+            // Try to use the actual hostname if available
+            if (window.location.hostname && window.location.hostname !== 'localhost') {
+                namespace = window.location.hostname.replace(/\./g, '-');
+            }
+            
+            const key = 'visits';
+            
+            // CountAPI.xyz - Free, no signup, no tracking
+            // Hit endpoint increments counter and returns new value
+            fetch(`https://api.countapi.xyz/hit/${namespace}/${key}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('CountAPI response not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && typeof data.value === 'number') {
+                        const formattedVisits = data.value.toLocaleString();
+                        if (visitorCountEl) {
+                            visitorCountEl.textContent = formattedVisits;
+                            visitorCountEl.style.animation = 'pulse 0.5s ease';
+                        }
+                    } else {
+                        throw new Error('Invalid CountAPI response');
+                    }
+                })
+                .catch(error => {
+                    console.log('CountAPI error:', error.message);
+                    // Use fallback counter
+                    useEstimatedCounter(visitorCountEl);
+                });
+        }
+        
+        // Fallback estimated counter (only used if CountAPI fails)
+        function useEstimatedCounter(visitorCountEl) {
+            if (!visitorCountEl) {
+                visitorCountEl = document.getElementById('visitorCount');
+            }
+            
+            const sessionKey = 'currentSession';
+            const visitsKey = 'estimatedVisits';
+            
+            // Check if this is a new session
+            const isNewSession = !sessionStorage.getItem(sessionKey);
+            
+            if (isNewSession) {
+                sessionStorage.setItem(sessionKey, 'active');
+                
+                let visits = parseInt(localStorage.getItem(visitsKey)) || 0;
+                visits++;
+                localStorage.setItem(visitsKey, visits.toString());
+            }
+            
+            const visits = parseInt(localStorage.getItem(visitsKey)) || 1;
+            const formattedVisits = visits.toLocaleString();
+            
+            if (visitorCountEl) {
+                visitorCountEl.textContent = formattedVisits + '*';
+                visitorCountEl.style.animation = 'pulse 0.5s ease';
+            }
+        }
+
+        // Copy button handler
+        copyBtn.addEventListener('click', async () => {
+            if (!inputArea.value.trim()) {
+                showNotification(translations[currentLang].notifNoContent);
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(inputArea.value);
+                showNotification(translations[currentLang].notifCopied);
+            } catch (err) {
+                // Fallback for older browsers
+                inputArea.select();
+                document.execCommand('copy');
+                showNotification(translations[currentLang].notifCopied);
+            }
+        });
+
+        // Clear button handler
+        clearBtn.addEventListener('click', () => {
+            inputArea.value = '';
+            preview.innerHTML = '';
+            fileInput.value = ''; // Reset file input
+            showNotification(translations[currentLang].notifCleared);
+        });
+
+        // Mode switching
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode;
+                
+                const t = translations[currentLang];
+                if (currentMode === 'md-to-word') {
+                    inputArea.placeholder = t.placeholderMd;
+                    btnText.textContent = t.convertToWord;
+                    fileInput.accept = '.md';
+                } else {
+                    inputArea.placeholder = t.placeholderWord;
+                    btnText.textContent = t.convertToMd;
+                    fileInput.accept = '.docx';
+                }
+                
+                // Reset everything
+                inputArea.value = '';
+                preview.innerHTML = '';
+                fileInput.value = '';
+            });
+        });
+
+        // Color picker
+        colorPicker.addEventListener('change', (e) => {
+            titleColor = e.target.value;
+            updatePreview();
+        });
+
+        // File upload handler
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const t = translations[currentLang];
+
+            if (currentMode === 'md-to-word' && file.name.endsWith('.md')) {
+                const text = await file.text();
+                inputArea.value = text;
+                updatePreview();
+                showNotification(t.notifMdLoaded);
+            } else if (currentMode === 'word-to-md' && file.name.endsWith('.docx')) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.convertToHtml({arrayBuffer: arrayBuffer});
+                    
+                    // Convert HTML to Markdown
+                    const markdown = htmlToMarkdown(result.value);
+                    inputArea.value = markdown;
+                    preview.innerHTML = result.value;
+                    
+                    showNotification(t.notifWordLoaded);
+                } catch (error) {
+                    showNotification(t.notifErrorLoading + error.message);
+                }
+            } else {
+                showNotification(t.notifWrongFormat);
+            }
+            
+            // Reset file input so the same file can be selected again
+            fileInput.value = '';
+        });
+
+        // Input area change handler
+        inputArea.addEventListener('input', updatePreview);
+
+        // Update preview
+        function updatePreview() {
+            if (currentMode === 'md-to-word') {
+                const html = converter.makeHtml(inputArea.value);
+                preview.innerHTML = html;
+                
+                // Apply title color
+                const headings = preview.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                headings.forEach(h => h.style.color = titleColor);
+            }
+        }
+
+        // HTML to Markdown converter
+        function htmlToMarkdown(html) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            let markdown = '';
+            
+            function processNode(node, listLevel = 0) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return node.textContent;
+                }
+                
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return '';
+                }
+                
+                let result = '';
+                const tag = node.tagName.toLowerCase();
+                
+                switch(tag) {
+                    case 'h1':
+                        result = '# ' + node.textContent + '\n\n';
+                        break;
+                    case 'h2':
+                        result = '## ' + node.textContent + '\n\n';
+                        break;
+                    case 'h3':
+                        result = '### ' + node.textContent + '\n\n';
+                        break;
+                    case 'h4':
+                        result = '#### ' + node.textContent + '\n\n';
+                        break;
+                    case 'h5':
+                        result = '##### ' + node.textContent + '\n\n';
+                        break;
+                    case 'h6':
+                        result = '###### ' + node.textContent + '\n\n';
+                        break;
+                    case 'p':
+                        result = node.textContent + '\n\n';
+                        break;
+                    case 'strong':
+                    case 'b':
+                        result = '**' + node.textContent + '**';
+                        break;
+                    case 'em':
+                    case 'i':
+                        result = '*' + node.textContent + '*';
+                        break;
+                    case 'code':
+                        result = '`' + node.textContent + '`';
+                        break;
+                    case 'pre':
+                        result = '```\n' + node.textContent + '\n```\n\n';
+                        break;
+                    case 'a':
+                        result = '[' + node.textContent + '](' + node.href + ')';
+                        break;
+                    case 'ul':
+                        Array.from(node.children).forEach(li => {
+                            result += '  '.repeat(listLevel) + '- ' + li.textContent + '\n';
+                        });
+                        result += '\n';
+                        break;
+                    case 'ol':
+                        Array.from(node.children).forEach((li, index) => {
+                            result += '  '.repeat(listLevel) + (index + 1) + '. ' + li.textContent + '\n';
+                        });
+                        result += '\n';
+                        break;
+                    case 'blockquote':
+                        result = '> ' + node.textContent + '\n\n';
+                        break;
+                    default:
+                        result = node.textContent;
+                }
+                
+                return result;
+            }
+            
+            Array.from(tempDiv.childNodes).forEach(node => {
+                markdown += processNode(node);
+            });
+            
+            return markdown.trim();
+        }
+
+        // Convert button handler
+        convertBtn.addEventListener('click', async () => {
+            if (!inputArea.value.trim()) {
+                showNotification(translations[currentLang].notifNoContent);
+                return;
+            }
+
+            if (currentMode === 'md-to-word') {
+                await convertMarkdownToWord();
+            } else {
+                convertWordToMarkdown();
+            }
+        });
+
+        // Markdown to Word conversion
+        async function convertMarkdownToWord() {
+            try {
+                const html = converter.makeHtml(inputArea.value);
+                
+                // Create styled HTML document
+                const styledHtml = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body {
+                                font-family: 'Calibri', 'Arial', sans-serif;
+                                font-size: 11pt;
+                                line-height: 1.5;
+                                color: #000000;
+                            }
+                            h1, h2, h3, h4, h5, h6 {
+                                color: ${titleColor};
+                                font-weight: bold;
+                                margin-top: 12pt;
+                                margin-bottom: 6pt;
+                            }
+                            h1 { font-size: 24pt; }
+                            h2 { font-size: 20pt; }
+                            h3 { font-size: 16pt; }
+                            h4 { font-size: 14pt; }
+                            h5 { font-size: 12pt; }
+                            h6 { font-size: 11pt; }
+                            p {
+                                margin: 0;
+                                margin-bottom: 8pt;
+                            }
+                            ul, ol {
+                                margin-left: 20pt;
+                                margin-bottom: 8pt;
+                            }
+                            li {
+                                margin-bottom: 4pt;
+                            }
+                            code {
+                                font-family: 'Courier New', monospace;
+                                background-color: #f5f5f5;
+                                padding: 2pt 4pt;
+                                border-radius: 3pt;
+                            }
+                            pre {
+                                font-family: 'Courier New', monospace;
+                                background-color: #f5f5f5;
+                                padding: 8pt;
+                                border-radius: 4pt;
+                                margin-bottom: 8pt;
+                            }
+                            pre code {
+                                background-color: transparent;
+                                padding: 0;
+                            }
+                            blockquote {
+                                border-left: 3pt solid #cccccc;
+                                padding-left: 12pt;
+                                margin-left: 0;
+                                margin-bottom: 8pt;
+                                color: #666666;
+                                font-style: italic;
+                            }
+                            table {
+                                border-collapse: collapse;
+                                width: 100%;
+                                margin-bottom: 8pt;
+                            }
+                            th, td {
+                                border: 1pt solid #cccccc;
+                                padding: 6pt;
+                                text-align: left;
+                            }
+                            th {
+                                background-color: #f5f5f5;
+                                font-weight: bold;
+                            }
+                            strong, b {
+                                font-weight: bold;
+                            }
+                            em, i {
+                                font-style: italic;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${html}
+                    </body>
+                    </html>
+                `;
+                
+                // Convert HTML to DOCX
+                const converted = htmlDocx.asBlob(styledHtml);
+                saveAs(converted, 'document.docx');
+                showNotification(translations[currentLang].notifWordDownloaded);
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification(translations[currentLang].notifErrorWord + error.message);
+            }
+        }
+
+        // Word to Markdown conversion
+        function convertWordToMarkdown() {
+            const markdown = inputArea.value;
+            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+            saveAs(blob, 'document.md');
+            showNotification(translations[currentLang].notifMdDownloaded);
+        }
+
+        // Show notification
+        function showNotification(message) {
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize
+        updateLanguage();
+        updatePreview();
+    </script>
+</body>
+</html>
